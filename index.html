@@ -1,0 +1,661 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+	<!-- <base href="https://rt.hpc.susu.ac.ru/st/" /> -->
+	<link rel="shortcut icon" type="image/x-icon" href="/st/favicon.ico">
+	<link rel="icon" type="image/x-icon" href="/st/favicon.ico">
+	<title>Статистика "Торнадо ЮУрГУ"</title>
+	<link href="/st/css/examples.css" rel="stylesheet" type="text/css">
+	<link href="/st/css/plot.css" rel="stylesheet" type="text/css">
+	<style type="text/css">
+
+	.grTable {
+		width: 100%;
+		text-align: center;
+		overflow: hidden;
+	}
+
+	tr {
+		width: 100%;
+	}
+
+	/*td {
+		text-align: center;
+	}*/
+
+	th {
+		/*text-align: center;*/
+		margin-left: 30px;
+		font: normal 26px "omnes-pro", Helvetica, Arial, sans-serif;
+		color: #666;
+	}
+
+	.graphs {
+		position: relative;
+		height: 400px;
+		width: 400px;
+	}
+
+	.graph2col {
+		position: relative;
+		height: 400px;
+		width: 800px;
+	}
+
+	#procgraph {
+		width: 100%;
+		height: 100%;
+	}
+
+	#loadgraph {
+		width: 100%;
+		height: 100%;
+	}
+
+	#taskgraph {
+		width: 100%;
+		height: 100%;
+	}
+
+	#timegraph {
+		width: 100%;
+		height: 100%;
+	}
+
+	#menu {
+		position: absolute;
+		top: 20px;
+		left: 625px;
+		bottom: 20px;
+		right: 20px;
+		width: 200px;
+	}
+
+	#menu button {
+		display: inline-block;
+		width: 200px;
+		padding: 3px 0 2px 0;
+		margin-bottom: 4px;
+		background: #eee;
+		border: 1px solid #999;
+		border-radius: 2px;
+		font-size: 12px;
+		-o-box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+		-ms-box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+		-moz-box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+		-webkit-box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+		box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+		cursor: pointer;
+	}
+
+	#description {
+		margin: 15px 10px 20px 10px;
+	}
+
+	#users {
+		display: block;
+		width: 200px;
+		padding: 15px;
+		margin: 10px auto;
+		border: 1px dashed #999;
+		background-color: #f8f8f8;
+		font-size: 16px;
+		line-height: 20px;
+		color: #666;
+	}
+
+	#squeue {
+		display: block;
+		width: 1000px;
+		padding: 15px;
+		/*margin: 10px auto;*/
+		border: 1px dashed #999;
+		background-color: #f8f8f8;
+		font-size: 13px;
+		line-height: 17px;
+		text-align: left;
+		color: #666;
+		word-wrap: break-word;
+	}
+
+	ul {
+		font-size: 10pt;
+	}
+
+	ul li {
+		margin-bottom: 0.5em;
+	}
+
+	ul.options li {
+		list-style: none;
+		margin-bottom: 1em;
+	}
+
+	ul li i {
+		color: #999;
+	}
+
+	</style>
+	<!--[if lte IE 8]><script language="javascript" type="text/javascript" src="../../excanvas.min.js"></script><![endif]-->
+	<script language="javascript" type="text/javascript" src="/st/jscript/jquery.js"></script>
+	<script language="javascript" type="text/javascript" src="/st/jscript/jquery.flot.js"></script>
+	<script language="javascript" type="text/javascript" src="/st/jscript/jquery.flot.stack.js"></script>
+	<script language="javascript" type="text/javascript" src="/st/jscript/jquery.flot.pie.js"></script>
+	<script language="javascript" type="text/javascript" src="/st/jscript/jquery.flot.valuelabels.js"></script>
+	<script language="javascript" type="text/javascript" src="/st/jscript/jquery.flot.crosshair.js"></script>
+	<script type="text/javascript">
+
+	//$(function() {
+	var data;
+	var oneLoadData = [[],[]],
+			totalPoints = 300;
+
+	//var procgraph = $("#procgraph");
+	//var taskgraph = $("#taskgraph");
+	//var loadgraph = $("#loadgraph");
+	
+	abs=function(x){
+    	return x>0?x:(-x);
+    }
+
+	var myWidth = document.documentElement.clientWidth;
+    var myHeight = document.documentElement.clientHeight;
+    //var getElementsByClass;
+
+    
+    window.onload = function () {
+		if (myWidth < 1380) {
+	    	
+			$(".graphs").each(function(index, element) {
+			    element.style.cssText="position: relative;height: 300px; width: 300px;"; 
+			});
+			$(".graph2col").each(function(index, element) {
+			    element.style.cssText="position: relative;height: 300px; width: 580px;"; 
+			});
+	    }
+	    show();
+    }
+
+	function showTooltip(x, y, contents) {
+		$('<div id="tooltip">' + contents + '</div>').css( {
+			position: 'absolute',
+			top: y+5,
+			left: x+5,
+			border: '1px solid #fdd',
+			padding: '2px','background-color': '#fee',
+			opacity: 0.80
+		}).appendTo("body");//.fadeIn(200);
+		$("#tooltip").hover(function () {
+			//$("#tooltip").remove();
+			$(this).remove();
+		},function () { 
+			alert("out");
+		});
+	}
+
+	function show () {
+		$.ajax({
+			url: "/st/exector/data",
+			type: "GET",
+			dataType: "json",
+			cache: false,
+			success: onDataReceived
+		});
+		$.ajax({
+			url: "/st/exector/squeue",
+			type: "GET",
+			dataType: "text",
+			cache: false,
+			success: setSqueue
+		});
+	}
+	//show();
+	var updateInterval=20000;
+	setInterval('show()',updateInterval);
+	//setTimeout(show, updateInterval);	
+
+	function onDataReceived(data) {
+
+		$("#usertitle").text("Пользователи (Всего: " + data.users.active.length + ")");			
+
+		$("#time").text("Время: " + data.date);	
+		
+		setUsers(data.users.active);
+
+		//$("#users-list").click(function() {
+		//	alert(data.users.active.join('\n'));				
+		//});
+
+		var procgraph = $("#procgraph");
+		var taskgraph = $("#taskgraph");
+		var loadgraph = $("#loadgraph");
+		var timegraph = $("#timegraph");
+
+		procgraph.unbind();
+		taskgraph.unbind();
+		loadgraph.unbind();
+		timegraph.unbind();
+
+		// ---------------------
+		// |  PROCESSOR GRAPH  |
+		// ---------------------
+
+		$("#proctitle").text("Узлы (Всего: " + data.proccnt/12 + ")");
+		//$("#description").text("Статистика по процессорам.");
+
+		$.plot(procgraph, data.processors, {
+			series: {
+				pie: { 
+					show: true,
+					radius: 1,
+					//innerRadius: 0.3,
+					label: {
+        				show: true,
+        				radius: 4/7,
+        				formatter: labelFormatter/*,
+        				background: { 
+            				opacity: 0.1,
+            				color: '#FFFFFF'
+            			}*/
+       					//threshold: 0.1
+    				}
+				}
+			},
+			grid: {
+				hoverable: true,
+				clickable: true
+			},
+			legend: {
+    			show: false
+			}
+		});
+
+		// ----------------------------
+		// |  END OF PROCESSOR GRAPH  |
+		// ----------------------------
+		
+		// ----------------
+		// |  TASK GRAPH  |
+		// ----------------
+
+		$("#tasktitle").text("Задачи (Всего: " + data.taskcnt + ")");
+			//$("#description").text("Статистика по задачам");
+
+		$.plot("#taskgraph", data.tasks, {
+			series: {
+				stack: false,
+				lines: {
+					show: true,
+					fill: true,
+					steps: false
+				},
+				points: {
+					show: false
+				},
+				bars: {
+					show: true,
+					//borderWidth:0,
+					barWidth: 3/5
+				},
+				valueLabels: {
+				   show: true,
+				   showAsHtml: false
+			  	}
+			},
+			xaxis: {
+				ticks: 0,
+				min: 0.3,
+				max: 4
+			},
+			yaxis: {
+				//ticks: [data.tasks[0].data[0][1], data.tasks[1].data[0][1],data.tasks[2].data[0][1], 			0,data.taskcnt],
+				ticks: 5,
+				min: 0,
+				max: data.taskcnt
+			},
+			grid: {
+				hoverable: true,
+				//clickable: true
+			},
+		});			
+
+		//previous = {series: 0, x: 0, y: 0, text: "none"};
+		// -----------------------
+		// |  END OF TASK GRAPH  |
+		// -----------------------
+
+		// ----------------
+		// |  LOAD GRAPH  |
+		// ----------------
+		$.plot("#loadgraph", data.load, {
+			series: {
+				stack: false,
+				lines: {
+					show: true,
+					fill: true,
+					steps: false
+				},
+				points: {
+					show: false//,
+					//label: {
+					//	show: true
+					//}
+				},
+				bars: {
+					show: true,
+                    barWidth: 1, // in units of the x axis
+                    fill: true
+				},
+				valueLabels: {
+				   show: true
+			  	}
+			},
+			xaxis: {
+				ticks: 0,
+				min: -0.3,
+				max: 4.3,
+				labelWidth: 12
+			},
+			yaxis: {
+				ticks: [0,20,40,60,80,100],//[0,10,20,30,40,50,60,70,80,90,100],
+				min: 0,
+				max: 130
+			},
+			grid: {
+				tickColor: "#aaa",
+				hoverable: true
+			}
+		});	
+
+		//previous = {series: 0, x: 0, y: 0, text: "none"};
+
+		// -----------------------
+		// |  END OF LOAD GRAPH  |
+		// -----------------------
+
+		// ----------------
+		// |  TIME GRAPH  |
+		// ----------------
+
+		//updateInterval = 30;
+		var loadData = [
+			{ data: getLoadData(0), label: data.load[0].label, color: data.load[0].color},
+			{ data: getLoadData(1), label: data.load[1].label, color: data.load[1].color}
+		];
+		timegraph=$.plot("#timegraph", loadData, {
+		//timegraph.plot("#timegraph", [ getLoadData() ], {
+			series: {
+				shadowSize: 0	// Drawing is faster without shadows
+			},
+			yaxis: {
+				ticks: [0,20,40,60,80,100],
+				min: 0,
+				max: 130
+			},
+			xaxis: {
+				show: false
+			},
+			crosshair: {
+				mode: "x"
+			},
+			grid: {
+				hoverable: true,
+				tickColor: "#aaa",
+				autoHighlight: false
+			},
+			legend: {
+    			show: true
+			}
+		});
+
+		// -----------------------
+		// |  END OF TIME GRAPH  |
+		// -----------------------
+
+		var previous = {series: 0, x: 0, y: 0, text: "none"};
+		procgraph.bind("plothover", function (event, pos, item) {
+		    if (item) {
+		        if (previous.series != item.series || 
+		        	abs(previous.x - pos.pageX)>2 ||
+		        	abs(previous.y - pos.pageY)>2
+		        ) {
+		            previous.series = item.series;
+		        	previous.x = pos.pageX;
+		        	previous.y = pos.pageY;
+		        	previous.text = "<b>" + item.series.label + ":</b><br>процессорных ядер	: " + 
+		        		item.series.data[0][1] + "<br> узлов: " + item.series.data[0][1]/12 + 
+		        		"<br> (" + Math.round(item.series.percent) + "%)";
+		            $("#tooltip").remove();
+					showTooltip(previous.x, previous.y, previous.text);
+		        }
+		    }
+		    else {
+		        $("#tooltip").remove();
+		        previous.series=0;
+		        previous.x=0;
+		        previous.y=0;
+		    }
+		});
+
+		procgraph.bind("plotclick", function(event, pos, item) {
+			if (!item) {
+				return;
+			}
+
+			//var text;
+			switch (item.seriesIndex) {
+    			// $.get("/st/exector/resname", function(data){
+				// 	text = data + "\n\n";
+				// });
+				// $.get("/st/exector/resnc", function(data){
+				// 	text += data;
+				// });
+				case 1: {
+					var resWin = window.open("/st/reservation.html",
+					   "_blank",
+					   "width=700,height=400,resizable=no,scrollbars=no,status=yes,location=no,left=500,top=200,toolbar=no,menubar=no,directories=no"
+					);
+					resWin.focus();
+				} break;
+				case 3: {
+					var reasonWin = window.open("/st/nodesinfo.html",
+					   "_blank",
+					   "width=1000,height=800,resizable=yes,scrollbars=yes,status=yes,location=no,left=500,top=200,toolbar=no,menubar=no,directories=no"
+					);
+					reasonWin.focus();
+				}
+				default: ;
+		    }    		
+        	// else {
+        	// 	percent = parseFloat(item.series.percent).toFixed(2);
+        	// 	text=item.series.label + ": " + percent + "%";
+        	// }
+        	// alert(text);
+		});
+
+		taskgraph.bind("plothover", function (event, pos, item) {
+		    if (item) {
+		        if (previous.series != item.series || 
+		        	abs(previous.x - pos.pageX)>2 ||
+		        	abs(previous.y - pos.pageY)>2
+		        ) {
+		            previous.series = item.series;
+		        	previous.x = pos.pageX;
+		        	previous.y = pos.pageY;
+		        	previous.text = "<b>" + item.series.label + ":</b><br> " + item.series.data[0][1];
+
+		            $("#tooltip").remove();
+					showTooltip(previous.x, previous.y, previous.text);
+		        }
+		    }
+		    else {
+		        $("#tooltip").remove();
+		        previous.series=0;
+		        previous.x=0;
+		        previous.y=0;
+		    }
+		});
+		
+		loadgraph.bind("plothover", function (event, pos, item) {
+		    if (item) {
+		        if (previous.series != item.series || 
+		        	abs(previous.x - pos.pageX)>2 ||
+		        	abs(previous.y - pos.pageY)>2
+		        ) {
+		            previous.series = item.series;
+		        	previous.x = pos.pageX;
+		        	previous.y = pos.pageY;
+		        	previous.text = "<b>" + item.series.label + ":</b><br> " + 
+		        		item.series.data[0][1] + "%";
+
+		            $("#tooltip").remove();
+					showTooltip(previous.x, previous.y, previous.text);
+		        }
+		    }
+		    else {
+		        $("#tooltip").remove();
+		        previous.series=0;
+		        previous.x=0;
+		        previous.y=0;
+		    }
+		});
+
+		var axes = timegraph.getAxes();
+		//alert (axes.xaxis.min);
+		$("#timegraph").bind("plothover", function (event, pos, item) {
+		    //if (item) {
+		    //var axes = $("#timegraph").getAxes();
+		    if (pos.x < axes.xaxis.min || pos.x > axes.xaxis.max ||
+				pos.y < axes.yaxis.min || pos.y > axes.yaxis.max) {
+		    	$("#tooltip").remove();
+		        previous.series=0;
+		        previous.x=0;
+		        previous.y=0;
+				return;
+			}
+		    if (abs(previous.x - pos.pageX)>2 || abs(previous.y - pos.pageY)>2) {
+	        	var j;
+	            //previous.series = item.series;
+	        	previous.x = pos.pageX;
+	        	previous.y = pos.pageY;
+	        	for (j = 0; j < loadData[0].data.length; ++j) {
+					if (loadData[0].data[j][0] > pos.x) {
+						break;
+					}
+				}
+	        	previous.text = "<b>" + loadData[0].label + ":</b><br> " + 
+	        		loadData[0].data[j][1] + "%" + "<br><b>" + loadData[1].label + ":</b><br> " + 
+	        		loadData[1].data[j][1] + "%";
+	        	//alert(previous.text);
+	            $("#tooltip").remove();
+				showTooltip(previous.x-300, previous.y, previous.text);
+	        }
+		});
+	
+		function getLoadData(loadNum) {
+
+			if (oneLoadData[loadNum].length > 0)
+				oneLoadData[loadNum] = oneLoadData[loadNum].slice(1);
+
+			// Do a random walk
+
+			while (oneLoadData[loadNum].length < totalPoints) {
+				oneLoadData[loadNum].push(data.load[loadNum].data[0][1]);
+			}
+
+			var res = [];
+			for (var i = 0; i < oneLoadData[loadNum].length; ++i) {
+				res.push([i, oneLoadData[loadNum][i]])
+			}
+
+			return res;
+		}
+
+	}
+	// ----- END OF function onDataRecieved ----- 
+
+	// Add the Flot version string to the footer
+
+	
+	//var updateInterval=1000;
+	//setTimeout(onDataReceived, updateInterval);
+
+	//});
+
+	
+
+	// A custom label formatter used by several of the plots
+
+	function labelFormatter(label, series) {
+		//alert(series.item);
+		var labelseries = "<div class=\"lab" /*+ series.index*/ + "\" style='font-size:12pt; text-align:center; padding:2px; color:black;'>" + label + 
+		/*": " + series.data[0][1] +*/ "<br>(" + Math.round(series.percent) + "%)" +
+		"</div>";
+		
+		return labelseries;
+	}
+
+	function setUsers(lines) {
+		$("#users").text(lines.join("\n"));
+	}
+
+	function setSqueue(lines) {
+		$("#squeue").text(lines);
+	}
+
+	</script>
+</head>
+<body>
+
+	<div id="header">
+		<h2>Статистика "Торнадо ЮУрГУ"</h2>
+	</div>
+
+	<div id="content">
+
+		<p id="time">Информация загружается<br/>
+			<img src="/st/img/loading.gif"/>
+		</p>
+		<br>
+		<!--div class="graphs"-->
+		<!--center-->
+		<table class="grTable" border="0" align="center" cellspacing="0" cellpadding="0" cols="3">
+			<tr>
+				<th id="proctitle">Узлы</th>
+				<th id="tasktitle">Задачи</th>
+				<th id="usertitle">Пользователи</th>
+			</tr>
+			<tr>
+				<td><div class="graphs"><div id="procgraph" class="demo-placeholder"></div></div></td>
+				<td><div class="graphs"><div id="taskgraph" class="demo-placeholder"></div></div></td>
+				<td align="center"><pre><code id="users"></code></pre></td>
+			</tr>
+			<tr>
+				<th>Загрузка</th>
+				<th colspan="2">Динамика загрузки</th>
+			</tr>
+			<tr>
+				<td><div class="graphs"><div id="loadgraph" class="demo-placeholder"></div></div></td>
+				<td colspan="2"><div class="graph2col"><div id="timegraph" class="demo-placeholder"></div></div></td>
+			</tr>
+			<tr>
+				<th colspan="3">SQUEUE</th>
+			</tr>
+			<tr>
+				<td colspan="3" align="center"><pre><code id="squeue" style="overflow: auto">Состояние очереди загружается<br/><img src="/st/img/loading.gif"/></code></pre></td>
+			</tr>
+		</table>
+		<!--/center-->
+		<!--/div-->
+
+
+		<br/>
+	</div>
+
+	<div id="footer">
+		Flot 0.8.1 &ndash; Суперкомпьютерный центр ЛСМ ЮУрГУ &copy; 2013
+	</div>
+
+</body>
+</html>
