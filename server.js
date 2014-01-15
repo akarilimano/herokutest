@@ -3,7 +3,7 @@ var http = require("http"),
     path = require("path"),
     fs = require("fs"),
     exec=require("child_process").exec,
-    port = process.argv[2] || 8080;
+    port = process.env.PORT || 8080;
 
 http.createServer(function(request, response) {
 
